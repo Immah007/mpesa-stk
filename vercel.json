@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "mpesa-stk-push",
+  "builds": [
+    { "src": "server.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/(.*)", "dest": "/server.js" }
+  ]
+}
