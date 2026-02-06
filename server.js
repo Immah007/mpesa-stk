@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const axios = require('axios');
+const { db } = require('./services/db');
 
 const app = express();
 app.use(express.json());
@@ -8,6 +9,10 @@ app.use(express.json());
 // === Serve frontend ===
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/luo', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'll.html'));
 });
 
 // === Production MPesa / Daraja config ===
@@ -100,10 +105,27 @@ app.post('/stkpush', async (req, res) => {
     });
 
     console.log('[STK] Response data:', stkResp.data);
+    //insert into database
+    const insertQuery = `
+  INSERT INTO mpesa_transactions_general (merchant_request_id, checkout_request_id, response_code)
+  VALUES ($1, $2, 808080)
+  RETURNING *
+`;
+
+const values = [stkResp.data.MerchantRequestID, stkResp.data.CheckoutRequestID];
+
+const { rows } = await db.query(insertQuery, values);
+console.log('Inserted transaction:', rows[0]);
+///done inserting into db
 
     return res.json({
       success: true,
-      message: stkResp.data.CustomerMessage || 'STK Push request accepted'
+      data: {
+        message: stkResp.data.CustomerMessage || 'STK Push request accepted',
+        checkoutRequestID: stkResp.data.CheckoutRequestID,
+        merchantRequestID: stkResp.data.MerchantRequestID,
+        statusCode: stkResp.data.ResponseCode
+      }
     });
 
   } catch (err) {
@@ -120,13 +142,157 @@ app.post('/stkpush', async (req, res) => {
   }
 });
 
+//give transaction feedback when frontend sends feedback request
+app.post('/check-transaction-status', async (req, res) => {
+  console.log(req.body);
+  const { checkoutRequestID, merchantRequestID } = req.body;
+
+  if (!checkoutRequestID || !merchantRequestID) {
+    return res.status(400).json({
+      success: false,
+      message: 'checkoutRequestId and merchantRequestId are required',
+    });
+  }
+
+  try {
+    // Query transaction from database
+    const query = `
+      SELECT response_code, transaction_data
+      FROM mpesa_transactions_general
+      WHERE checkout_request_id = $1
+        AND merchant_request_id = $2
+      LIMIT 1
+    `;
+
+    const { rows } = await db.query(query, [
+      checkoutRequestID,
+      merchantRequestID,
+    ]);
+
+    console.log(rows);
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Transaction not found',
+      });
+    }
+
+    const resultCode = Number(rows[0].response_code);
+    let message = 'Unknown transaction status';
+    let success = false;
+    let data = {};
+
+    // Interpret ResultCode
+    switch (resultCode) {
+      case 0:
+        success = true;
+        message = 'Payment successful';
+        data = rows[0].transaction_data;
+        break;
+      case 1:
+        message = 'Insufficient balance or overdraft declined';
+        break;
+      case 1001:
+        message = 'Subscriber locked or conflicting session';
+        break;
+      case 1019:
+        message = 'Transaction expired';
+        break;
+      case 1025:
+        message = 'Error sending push request';
+        break;
+      case 1032:
+        message = 'User cancelled the request';
+        break;
+      case 1037:
+        message = 'User unreachable or device/server timeout';
+        break;
+      case 9999:
+        message = 'General push request error';
+        break;
+      default:
+        message = 'Unrecognized transaction result code';
+        break;
+    }
+
+    return res.status(200).json({
+      success,
+      resultCode,
+      message,
+      data,
+    });
+  } catch (error) {
+    console.error('Error checking transaction status:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
+
+
 // Callback endpoint
-app.post('/process-mpesa-callback', (req, res) => {
+app.post('/process-mpesa-callback', async (req, res) => {
   console.log('Received M-Pesa Callback:');
   //console.dir(req.body, { depth: null });
   console.log(req.body);
   // Respond to Safaricom immediately to avoid timeout
   res.status(200).json({ ResultCode: 0, ResultDesc: 'Callback received successfully' });
+
+
+  //record status to database
+  try {
+    const callback = req.body?.Body?.stkCallback;
+
+    if (!callback) {
+      console.error('Invalid MPESA callback structure');
+      return;
+    }
+
+    const {
+      MerchantRequestID,
+      CheckoutRequestID,
+      ResultCode,
+      ResultDesc,
+      CallbackMetadata,
+    } = callback;
+
+    // Prepare transaction_data object
+    let transactionData = {};
+
+    if (CallbackMetadata?.Item) {
+      // Convert array of items into a simple key-value object
+      CallbackMetadata.Item.forEach(item => {
+        transactionData[item.Name] = item.Value;
+      });
+    }
+
+    // Add raw callback for full audit trail
+    transactionData.rawCallback = callback;
+
+    // Update the transaction record
+    const updateQuery = `
+      UPDATE mpesa_transactions_general
+      SET
+        response_code = $1,
+        transaction_data = $2
+      WHERE merchant_request_id = $3
+        AND checkout_request_id = $4
+    `;
+
+    await db.query(updateQuery, [
+      ResultCode,
+      transactionData,
+      MerchantRequestID,
+      CheckoutRequestID,
+    ]);
+
+  } catch (error) {
+    console.error('Error processing MPESA callback:', error);
+  }
 });
 
 // Start server
@@ -134,4 +300,3 @@ const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`✅ Server running at http://localhost:${PORT}`);
 });
-
