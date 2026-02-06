@@ -15,7 +15,7 @@ const CONSUMER_KEY = 'gj230a8RAQZZVACSCafk1rjoeLISsg9LXTFkRftwigdDxKT8';
 const CONSUMER_SECRET = 'bDQWzIs3d3rpDDiX6BqLixZ3HAoCUoo2ZN77wQ3oa4k3GdgAz9ZhP67K22VgEO12';
 const SHORTCODE = '5687502';        // e.g. 174379
 const PASSKEY = 'fc4f2cf850d54d271f1d828247ce3b6fa913f7f8b67d6f5ce97b3ae89527319d';
-const CALLBACK_URL = 'https://f890a62ace42.ngrok-free.app/process-mpesa-callback';  // Must be HTTPS
+const CALLBACK_URL = 'https://mpesa-stk-olive.vercel.app/process-mpesa-callback';  // Must be HTTPS
 
 // Key endpoints from Daraja (production)
 const OAUTH_URL = 'https://api.safaricom.co.ke/oauth/v1/generate';
@@ -134,3 +134,4 @@ const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`✅ Server running at http://localhost:${PORT}`);
 });
+
