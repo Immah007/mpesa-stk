@@ -23,7 +23,7 @@
       border: none;
       cursor: pointer;
     }
-    #result {
+    #status {
       margin-top: 20px;
       font-size: 14px;
     }
@@ -36,10 +36,12 @@
     <input type="number" id="amount" placeholder="Amount" required />
     <button type="submit">Send Request</button>
   </form>
+  <div id="status"></div>
   <div id="result"></div>
 
   <script>
     const form = document.getElementById('stkForm');
+    const status = document.getElementById('status');
     const result = document.getElementById('result');
 
     form.addEventListener('submit', async (e) => {
@@ -48,7 +50,7 @@
       const phone = document.getElementById('phone').value.trim();
       const amount = document.getElementById('amount').value;
 
-      result.textContent = 'Sending STK Push...';
+      status.textContent = 'Sending STK Push...';
 
       try {
         const res = await fetch('/stkpush', {
@@ -60,17 +62,80 @@
         const data = await res.json();
 
         if (data.success) {
-          result.style.color = 'green';
-          result.textContent = data.message;
+          status.style.color = 'green';
+          status.textContent = data.data.message;
+          result.textContent = 'Checking transaction status...'
+
+          ///////send the request to server check status of payment//////
+          const { checkoutRequestID, merchantRequestID } = data.data;
+          console.log(data);
+          console.log('req id;' + checkoutRequestID);
+          setTimeout(()=> getStatus(checkoutRequestID, merchantRequestID), 5000);
+
+          //create a function we can call to do this eg getStatus(checkoutRequestID)
+
         } else {
-          result.style.color = 'red';
-          result.textContent = data.error || 'Something went wrong.';
+          status.style.color = 'red';
+          status.textContent = data.error || 'Something went wrong.';
         }
       } catch (err) {
-        result.style.color = 'red';
-        result.textContent = 'Failed to send STK Push.';
+        status.style.color = 'red';
+        status.textContent = 'Failed to send STK Push.';
       }
+
     });
+
+     // ----------- Status Checker Function -----------
+      async function getStatus(checkoutRequestID, merchantRequestID) {
+        console.log('payload:' + checkoutRequestID + "- & -" + merchantRequestID)
+  try {
+    // Send request to server
+    const res = await fetch('/check-transaction-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ checkoutRequestID, merchantRequestID })
+    });
+
+    const data = await res.json();
+    console.log('Transaction data:', data);
+
+    if (data.resultCode === 0) {
+      // Payment succeeded, show metadata if available
+      result.style.color = 'green';
+      result.innerHTML = `
+        Payment successful! <br>
+        Receipt: ${data.data?.MpesaReceiptNumber || '-'} <br>
+        Amount: ${data.data?.Amount || '-'} <br>
+        Phone: ${data.data?.PhoneNumber || '-'} <br>
+        Date: ${data.data?.TransactionDate || '-'}
+      `;
+    } else if ( data.resultCode === 808080 || data.resultCode === undefined || data.resultCode === null ) {
+      // Still pending? wait a short delay, then check again
+      result.style.color = 'orange';
+      result.textContent = 'Pending... Checking again soon';
+       if(data.resultCode !== 808080){
+        result.textContent = data.message;
+       }
+
+      // Wait a few seconds before querying again
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      getStatus(checkoutRequestID, merchantRequestID); // Recursive call
+    } else {
+      // Payment failed
+      result.style.color = 'red';
+      result.textContent = data.message || 'Payment failed.';
+    }
+  } catch (err) {
+    // Network or server error, retry after a delay
+    console.error('Error checking transaction status:', err);
+    result.style.color = 'red';
+    result.textContent = 'Error checking transaction status. Retrying soon...';
+
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    await getStatus(checkoutRequestID, merchantRequestID);
+  }
+}
+
   </script>
 </body>
 </html>
