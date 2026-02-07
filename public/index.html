@@ -3,55 +3,468 @@
 <head>
   <meta charset="UTF-8" />
   <title>MPesa STK Push</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
+    :root {
+      --primary: #0066cc;
+      --success: #10b981;
+      --error: #ef4444;
+      --warning: #f59e0b;
+      --dark: #1e293b;
+      --light: #f8fafc;
+      --gray: #64748b;
+      --transition: all 0.3s ease;
+      --shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      --radius: 12px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      max-width: 400px;
-      margin: 100px auto;
-      text-align: center;
-      color: #333;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      color: var(--dark);
     }
-    input, button {
+
+    .container {
+      background: white;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
       width: 100%;
-      padding: 12px;
-      margin: 10px 0;
-      font-size: 16px;
+      max-width: 450px;
+      padding: 40px 35px;
+      position: relative;
+      overflow: hidden;
     }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 30px;
+      color: var(--primary);
+    }
+
+    .logo i {
+      font-size: 42px;
+      margin-bottom: 10px;
+    }
+
+    .logo h1 {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .form-group {
+      margin-bottom: 24px;
+      text-align: left;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: var(--dark);
+      font-size: 14px;
+    }
+
+    .input-with-icon {
+      position: relative;
+    }
+
+    .input-with-icon i {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--gray);
+    }
+
+    input {
+      width: 100%;
+      padding: 14px 14px 14px 48px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: var(--transition);
+      background-color: var(--light);
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+    }
+
     button {
-      background-color: #1a1a2e;
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(to right, var(--primary), #0052b3);
       color: white;
       border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
       cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
     }
-    #status {
-      margin-top: 20px;
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0, 102, 204, 0.3);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .status-container {
+      margin-top: 25px;
+      padding: 20px;
+      border-radius: 8px;
+      background-color: #f8fafc;
+      display: none;
+    }
+
+    .status-container.show {
+      display: block;
+      animation: fadeIn 0.5s ease;
+    }
+
+    .status-title {
+      font-weight: 600;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-content {
       font-size: 14px;
+      color: var(--gray);
+    }
+
+    /* Modal Overlay */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: var(--transition);
+      padding: 20px;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: white;
+      border-radius: var(--radius);
+      width: 100%;
+      max-width: 450px;
+      overflow: hidden;
+      transform: translateY(20px);
+      transition: var(--transition);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-overlay.active .modal {
+      transform: translateY(0);
+    }
+
+    .modal-header {
+      padding: 25px 30px;
+      text-align: center;
+    }
+
+    .modal-body {
+      padding: 0 30px 30px;
+    }
+
+    .modal-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      font-size: 36px;
+    }
+
+    .modal-icon.success {
+      background-color: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+    }
+
+    .modal-icon.error {
+      background-color: rgba(239, 68, 68, 0.1);
+      color: var(--error);
+    }
+
+    .modal-icon.info {
+      background-color: rgba(0, 102, 204, 0.1);
+      color: var(--primary);
+    }
+
+    .modal-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .modal-message {
+      color: var(--gray);
+      line-height: 1.6;
+    }
+
+    .transaction-details {
+      background-color: #f8fafc;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+      text-align: left;
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .detail-row:last-child {
+      border-bottom: none;
+    }
+
+    .detail-label {
+      font-weight: 500;
+      color: var(--gray);
+    }
+
+    .detail-value {
+      font-weight: 600;
+      color: var(--dark);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 15px;
+      margin-top: 30px;
+    }
+
+    .modal-btn {
+      flex: 1;
+      padding: 14px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      text-align: center;
+      border: none;
+      font-size: 16px;
+    }
+
+    .modal-btn.primary {
+      background-color: var(--primary);
+      color: white;
+    }
+
+    .modal-btn.secondary {
+      background-color: #e2e8f0;
+      color: var(--dark);
+    }
+
+    .modal-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Loader */
+    .loader {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    .loader.small {
+      width: 16px;
+      height: 16px;
+      border-width: 2px;
+    }
+
+    .loader.dark {
+      border-color: rgba(0, 0, 0, 0.1);
+      border-top-color: var(--primary);
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .container {
+        padding: 30px 25px;
+      }
+      
+      .modal-header, .modal-body {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+      
+      .modal-actions {
+        flex-direction: column;
+      }
     }
   </style>
 </head>
 <body>
-  <h2>Send MPesa STK Push</h2>
-  <form id="stkForm">
-    <input type="text" id="phone" placeholder="Phone (2547XXXXXXXX)" required />
-    <input type="number" id="amount" placeholder="Amount" required />
-    <button type="submit">Send Request</button>
-  </form>
-  <div id="status"></div>
-  <div id="result"></div>
+  <div class="container">
+    <div class="logo">
+      <i class="fas fa-mobile-alt"></i>
+      <h1>MPesa STK Push</h1>
+    </div>
+
+    <form id="stkForm">
+      <div class="form-group">
+        <label for="phone">Phone Number</label>
+        <div class="input-with-icon">
+          <i class="fas fa-phone"></i>
+          <input type="text" id="phone" placeholder="2547XXXXXXXX" required />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="amount">Amount (KES)</label>
+        <div class="input-with-icon">
+          <i class="fas fa-money-bill-wave"></i>
+          <input type="number" id="amount" placeholder="100" required />
+        </div>
+      </div>
+
+      <button type="submit" id="submitBtn">
+        <span id="btnText">Send STK Push</span>
+        <div class="loader" id="btnLoader" style="display: none;"></div>
+      </button>
+    </form>
+
+    <div class="status-container" id="statusContainer">
+      <div class="status-title">
+        <i class="fas fa-info-circle"></i>
+        <span id="statusTitle">Status</span>
+      </div>
+      <div class="status-content" id="statusContent"></div>
+    </div>
+  </div>
+
+  <!-- Modal Overlay -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-icon" id="modalIcon">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <h2 class="modal-title" id="modalTitle">Payment Successful</h2>
+        <p class="modal-message" id="modalMessage">Your payment has been processed successfully.</p>
+      </div>
+      
+      <div class="modal-body">
+        <div class="transaction-details" id="transactionDetails">
+          <!-- Details will be populated here -->
+        </div>
+        
+        <div class="modal-actions">
+          <button class="modal-btn primary" id="modalCloseBtn">Close</button>
+          <button class="modal-btn secondary" id="modalNewBtn">New Payment</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script>
     const form = document.getElementById('stkForm');
-    const status = document.getElementById('status');
-    const result = document.getElementById('result');
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = document.getElementById('btnText');
+    const btnLoader = document.getElementById('btnLoader');
+    const statusContainer = document.getElementById('statusContainer');
+    const statusContent = document.getElementById('statusContent');
+    const statusTitle = document.getElementById('statusTitle');
+    
+    // Modal elements
+    const modalOverlay = document.getElementById('modalOverlay');
+    const modalIcon = document.getElementById('modalIcon');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalMessage = document.getElementById('modalMessage');
+    const transactionDetails = document.getElementById('transactionDetails');
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+    const modalNewBtn = document.getElementById('modalNewBtn');
+    
+    // Store transaction data for retry
+    let currentCheckoutRequestID = null;
+    let currentMerchantRequestID = null;
+    let statusCheckInterval = null;
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-
+      
       const phone = document.getElementById('phone').value.trim();
       const amount = document.getElementById('amount').value;
-
-      status.textContent = 'Sending STK Push...';
-
+      
+      // Validate phone number format
+      if (!phone.match(/^254[17]\d{8}$/)) {
+        showModal('error', 'Invalid Phone Number', 'Please enter a valid Kenyan phone number starting with 254');
+        return;
+      }
+      
+      // Validate amount
+      if (amount < 1) {
+        showModal('error', 'Invalid Amount', 'Please enter an amount greater than 0');
+        return;
+      }
+      
+      // Show loading state
+      setButtonLoading(true);
+      showStatus('Sending STK Push...', 'info');
+      
       try {
         const res = await fetch('/stkpush', {
           method: 'POST',
@@ -62,80 +475,179 @@
         const data = await res.json();
 
         if (data.success) {
-          status.style.color = 'green';
-          status.textContent = data.data.message;
-          result.textContent = 'Checking transaction status...'
-
-          ///////send the request to server check status of payment//////
+          showStatus('STK Push sent successfully! Checking transaction status...', 'success');
+          
+          // Store IDs for status checking
           const { checkoutRequestID, merchantRequestID } = data.data;
-          console.log(data);
-          console.log('req id;' + checkoutRequestID);
-          setTimeout(()=> getStatus(checkoutRequestID, merchantRequestID), 5000);
-
-          //create a function we can call to do this eg getStatus(checkoutRequestID)
-
+          currentCheckoutRequestID = checkoutRequestID;
+          currentMerchantRequestID = merchantRequestID;
+          
+          // Start checking status after 5 seconds
+          setTimeout(() => getStatus(checkoutRequestID, merchantRequestID), 5000);
         } else {
-          status.style.color = 'red';
-          status.textContent = data.error || 'Something went wrong.';
+          setButtonLoading(false);
+          showModal('error', 'Request Failed', data.error || 'Something went wrong. Please try again.');
         }
       } catch (err) {
-        status.style.color = 'red';
-        status.textContent = 'Failed to send STK Push.';
+        setButtonLoading(false);
+        showModal('error', 'Network Error', 'Failed to send STK Push. Please check your connection and try again.');
       }
-
     });
 
-     // ----------- Status Checker Function -----------
-      async function getStatus(checkoutRequestID, merchantRequestID) {
-        console.log('payload:' + checkoutRequestID + "- & -" + merchantRequestID)
-  try {
-    // Send request to server
-    const res = await fetch('/check-transaction-status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ checkoutRequestID, merchantRequestID })
-    });
+    // Status checking function
+    async function getStatus(checkoutRequestID, merchantRequestID) {
+      showStatus('Checking transaction status...', 'info', true);
+      
+      try {
+        const res = await fetch('/check-transaction-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ checkoutRequestID, merchantRequestID })
+        });
 
-    const data = await res.json();
-    console.log('Transaction data:', data);
-
-    if (data.resultCode === 0) {
-      // Payment succeeded, show metadata if available
-      result.style.color = 'green';
-      result.innerHTML = `
-        Payment successful! <br>
-        Receipt: ${data.data?.MpesaReceiptNumber || '-'} <br>
-        Amount: ${data.data?.Amount || '-'} <br>
-        Phone: ${data.data?.PhoneNumber || '-'} <br>
-        Date: ${data.data?.TransactionDate || '-'}
-      `;
-    } else if ( data.resultCode === 808080 || data.resultCode === undefined || data.resultCode === null ) {
-      // Still pending? wait a short delay, then check again
-      result.style.color = 'orange';
-      result.textContent = 'Pending... Checking again soon';
-       if(data.resultCode !== 808080){
-        result.textContent = data.message;
-       }
-
-      // Wait a few seconds before querying again
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      getStatus(checkoutRequestID, merchantRequestID); // Recursive call
-    } else {
-      // Payment failed
-      result.style.color = 'red';
-      result.textContent = data.message || 'Payment failed.';
+        const data = await res.json();
+        
+        if (data.resultCode === 0) {
+          // Payment succeeded
+          setButtonLoading(false);
+          showStatus('Payment successful!', 'success');
+          
+          // Show success modal with details
+          showSuccessModal(data.data);
+        } else if (data.resultCode === 808080 || data.resultCode === undefined || data.resultCode === null) {
+          // Still pending
+          if (data.resultCode !== 808080) {
+            showStatus(data.message || 'Pending...', 'warning', true);
+          } else {
+            showStatus('Pending... Checking again in 5 seconds', 'warning', true);
+          }
+          
+          // Check again after 5 seconds
+          setTimeout(() => getStatus(checkoutRequestID, merchantRequestID), 5000);
+        } else {
+          // Payment failed
+          setButtonLoading(false);
+          showModal('error', 'Payment Failed', data.message || 'The payment could not be completed.');
+        }
+      } catch (err) {
+        showStatus('Error checking status. Retrying...', 'error', true);
+        
+        // Retry after 5 seconds
+        setTimeout(() => getStatus(checkoutRequestID, merchantRequestID), 5000);
+      }
     }
-  } catch (err) {
-    // Network or server error, retry after a delay
-    console.error('Error checking transaction status:', err);
-    result.style.color = 'red';
-    result.textContent = 'Error checking transaction status. Retrying soon...';
 
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    await getStatus(checkoutRequestID, merchantRequestID);
-  }
-}
+    // UI Helper Functions
+    function setButtonLoading(isLoading) {
+      if (isLoading) {
+        submitBtn.disabled = true;
+        btnText.textContent = 'Processing...';
+        btnLoader.style.display = 'block';
+      } else {
+        submitBtn.disabled = false;
+        btnText.textContent = 'Send STK Push';
+        btnLoader.style.display = 'none';
+      }
+    }
 
+    function showStatus(message, type, showLoader = false) {
+      statusContainer.classList.add('show');
+      statusContent.textContent = message;
+      
+      // Set color based on type
+      const colors = {
+        success: 'var(--success)',
+        error: 'var(--error)',
+        warning: 'var(--warning)',
+        info: 'var(--primary)'
+      };
+      
+      statusTitle.style.color = colors[type] || colors.info;
+      
+      // Add loader if needed
+      if (showLoader) {
+        statusContent.innerHTML = `${message} <span class="loader small dark" style="margin-left: 8px;"></span>`;
+      }
+    }
+
+    function showModal(type, title, message, transactionData = null) {
+      // Set modal icon and color
+      const icons = {
+        success: { icon: 'fa-check-circle', color: 'success' },
+        error: { icon: 'fa-times-circle', color: 'error' },
+        info: { icon: 'fa-info-circle', color: 'info' }
+      };
+      
+      const modalType = icons[type] || icons.info;
+      
+      modalIcon.innerHTML = `<i class="fas ${modalType.icon}"></i>`;
+      modalIcon.className = `modal-icon ${modalType.color}`;
+      modalTitle.textContent = title;
+      modalMessage.textContent = message;
+      
+      // Populate transaction details if available
+      if (transactionData) {
+        transactionDetails.innerHTML = `
+          <div class="detail-row">
+            <span class="detail-label">Receipt Number:</span>
+            <span class="detail-value">${transactionData.MpesaReceiptNumber || '-'}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Amount:</span>
+            <span class="detail-value">KES ${transactionData.Amount || '-'}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Phone:</span>
+            <span class="detail-value">${transactionData.PhoneNumber || '-'}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Transaction Date:</span>
+            <span class="detail-value">${formatDate(transactionData.TransactionDate) || '-'}</span>
+          </div>
+        `;
+        transactionDetails.style.display = 'block';
+      } else {
+        transactionDetails.style.display = 'none';
+      }
+      
+      // Show modal
+      modalOverlay.classList.add('active');
+    }
+
+    function showSuccessModal(transactionData) {
+      showModal('success', 'Payment Successful', 'Your payment has been processed successfully.', transactionData);
+    }
+
+    function formatDate(dateString) {
+      if (!dateString) return '-';
+      
+      // Assuming format like 20240328123456 (YYYYMMDDHHMMSS)
+      if (dateString.length === 14) {
+        const year = dateString.substring(0, 4);
+        const month = dateString.substring(4, 6);
+        const day = dateString.substring(6, 8);
+        const hour = dateString.substring(8, 10);
+        const minute = dateString.substring(10, 12);
+        
+        return `${day}/${month}/${year} ${hour}:${minute}`;
+      }
+      
+      return dateString;
+    }
+
+    // Modal button handlers
+    modalCloseBtn.addEventListener('click', () => {
+      modalOverlay.classList.remove('active');
+    });
+
+    modalNewBtn.addEventListener('click', () => {
+      modalOverlay.classList.remove('active');
+      form.reset();
+      statusContainer.classList.remove('show');
+    });
+
+    // Initial focus on phone input
+    document.getElementById('phone').focus();
   </script>
 </body>
 </html>
