@@ -88,7 +88,7 @@ app.post('/stkpush', async (req, res) => {
       TransactionType: 'CustomerBuyGoodsOnline', // 'CustomerPayBillOnline',
       Amount: amount,
       PartyA: phone,
-      PartyB: '4959216',// SHORTCODE,
+      PartyB: '4959216',// SHORTCODE, 5467496
       PhoneNumber: phone,
       CallBackURL: CALLBACK_URL,
       AccountReference: 'Merchant Store here',
@@ -300,3 +300,4 @@ const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`✅ Server running at http://localhost:${PORT}`);
 });
+
