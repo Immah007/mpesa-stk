@@ -300,6 +300,21 @@ app.post('/process-mpesa-callback', async (req, res) => {
   }
 });
 
+function getLast48HoursRange() {
+  const now = new Date();
+  const past = new Date(now.getTime() - (48 * 60 * 60 * 1000));
+
+  const format = (d) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ` +
+    `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+
+  return {
+    startDate: format(past),
+    endDate: format(now)
+  };
+}
+
+
 
 app.get('/pull-last-48hrs', async (req, res) => {
   try {
@@ -336,5 +351,6 @@ const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`✅ Server running at http://localhost:${PORT}`);
 });
+
 
 
