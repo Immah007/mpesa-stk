@@ -26,6 +26,11 @@ const CALLBACK_URL = 'https://mpesa-stk-olive.vercel.app/process-mpesa-callback'
 const OAUTH_URL = 'https://api.safaricom.co.ke/oauth/v1/generate';
 const STK_PUSH_URL = 'https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest';
 
+// Pull Transactions API (Production)
+const PULL_REGISTER_URL = 'https://api.safaricom.co.ke/pulltransactions/v1/register';
+const PULL_QUERY_URL = 'https://api.safaricom.co.ke/pulltransactions/v1/query';
+
+
 // Utility: timestamp in YYYYMMDDHHmmss
 function getTimestamp() {
   const dt = new Date();
@@ -295,9 +300,41 @@ app.post('/process-mpesa-callback', async (req, res) => {
   }
 });
 
+
+app.get('/pull-last-48hrs', async (req, res) => {
+  try {
+    const token = await getAccessToken();
+    const { startDate, endDate } = getLast48HoursRange();
+
+    const response = await axios.get(PULL_QUERY_URL, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      params: {
+        ShortCode: SHORTCODE,
+        StartDate: startDate,
+        EndDate: endDate,
+        OffSetValue: 0
+      }
+    });
+
+    res.json(response.data);
+
+  } catch (error) {
+    console.error("Auto 48hr Pull Error:", error.response?.data || error.message);
+
+    res.status(500).json({
+      success: false,
+      error: error.response?.data || error.message
+    });
+  }
+});
+
+
 // Start server
 const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`✅ Server running at http://localhost:${PORT}`);
 });
+
 
