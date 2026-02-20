@@ -21,6 +21,7 @@ const CONSUMER_SECRET = 'bDQWzIs3d3rpDDiX6BqLixZ3HAoCUoo2ZN77wQ3oa4k3GdgAz9ZhP67
 const SHORTCODE = '5687502';        // e.g. 174379
 const PASSKEY = 'fc4f2cf850d54d271f1d828247ce3b6fa913f7f8b67d6f5ce97b3ae89527319d';
 const CALLBACK_URL = 'https://mpesa-stk-olive.vercel.app/process-mpesa-callback';  // Must be HTTPS
+const CONFIRMATION_URL = 'https://mpesa-stk-olive.vercel.app/customer-payment-confirmation'
 
 // Key endpoints from Daraja (production)
 const OAUTH_URL = 'https://api.safaricom.co.ke/oauth/v1/generate';
@@ -90,10 +91,10 @@ app.post('/stkpush', async (req, res) => {
       BusinessShortCode:  SHORTCODE,
       Password: password,
       Timestamp: timestamp,
-      TransactionType: 'CustomerBuyGoodsOnline', // 'CustomerPayBillOnline',
+      TransactionType: 'CustomerPayBillOnline', // 'CustomerBuyGoodsOnline', // 'CustomerPayBillOnline',
       Amount: amount,
       PartyA: phone,
-      PartyB: '4959216',// SHORTCODE, 5467496
+      PartyB: '5687502', // '4959216',// SHORTCODE, 5467496
       PhoneNumber: phone,
       CallBackURL: CALLBACK_URL,
       AccountReference: 'Merchant Store here',
@@ -332,7 +333,7 @@ app.get('/pull-last-48hrs', async (req, res) => {
         OffSetValue: 0
       }
     });
-
+    console.log(response)
     res.json(response.data);
 
   } catch (error) {
@@ -346,13 +347,110 @@ app.get('/pull-last-48hrs', async (req, res) => {
 });
 
 
+const REGISTER_URL = 'https://api.safaricom.co.ke/mpesa/c2b/v1/registerurl';
+const C2B_REGISTER_URL = 'https://api.safaricom.co.ke/mpesa/c2b/v1/registerurl';
+
+app.get('/register-c2b-no-validation', async (req, res) => {
+  try {
+    const token = await getAccessToken();
+
+    const payload = {
+      ShortCode: SHORTCODE,
+      ResponseType: "Completed", // VERY IMPORTANT
+      ConfirmationURL: CONFIRMATION_URL,
+      ValidationURL: "" // Leave empty to disable validation
+    };
+
+    const response = await axios.post(C2B_REGISTER_URL, payload, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log("C2B Register Response:", response.data);
+    res.json(response.data);
+
+  } catch (error) {
+    console.error("C2B Register Error:", error.response?.data || error.message);
+    res.status(500).json(error.response?.data || error.message);
+  }
+});
+
+
+
+
+// C2B Confirmation endpoint
+app.post('/customer-payment-confirmation', async (req, res) => {
+  console.log('C2B Confirmation received:');
+  console.log(req.body);
+
+  // Always respond immediately
+  res.status(200).json({
+    ResultCode: 0,
+    ResultDesc: "Accepted"
+  });
+
+  try {
+    const {
+      TransID,
+      TransTime,
+      TransAmount,
+      BusinessShortCode,
+      BillRefNumber,
+      InvoiceNumber,
+      MSISDN,
+      FirstName,
+      MiddleName,
+      LastName
+    } = req.body;
+
+    // Prepare transaction_data like you do for STK
+    const transactionData = {
+      TransTime,
+      TransAmount,
+      BusinessShortCode,
+      BillRefNumber,
+      InvoiceNumber,
+      MSISDN,
+      FirstName,
+      MiddleName,
+      LastName,
+      rawCallback: req.body
+    };
+
+    const insertQuery = `
+      INSERT INTO mpesa_transactions_general 
+        (merchant_request_id, checkout_request_id, response_code, transaction_data)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (merchant_request_id) DO NOTHING
+      RETURNING *
+    `;
+
+    const values = [
+      TransID,        // merchant_request_id
+      TransID,        // checkout_request_id (C2B has none, reuse TransID)
+      0,              // response_code (success)
+      transactionData // transaction_data
+    ];
+
+    const { rows } = await db.query(insertQuery, values);
+
+    console.log("C2B transaction saved:", rows[0]);
+
+  } catch (error) {
+    console.error("Error processing C2B confirmation:", error);
+  }
+});
+
+
+
+
 // Start server
 const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`✅ Server running at http://localhost:${PORT}`);
 });
-
-
 
 
 
